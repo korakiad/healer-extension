@@ -37,6 +37,7 @@ Do NOT attempt to fix it automatically. Instead:
 
 ## Rules
 
+- **Never guess from static analysis** — do NOT infer what the page looks like by reading the test code, URLs, or external knowledge. You MUST open the browser with `playwright-cli open --headed` and observe the actual page via `snapshot` before making any assessment or suggestion
 - Never call `applyEdit` without explicit user approval
 - One broken element at a time — do not batch multiple fixes
 - If the page fails to load or shows server errors, report it as infrastructure issue — do not classify as broken element
