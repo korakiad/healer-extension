@@ -1,0 +1,134 @@
+{
+  "name": "playwright-healer",
+  "displayName": "Playwright Healer",
+  "description": "Heal failing Playwright tests via Copilot agent mode with live screencast",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.100.0" },
+  "categories": ["Testing"],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "workspaceContains:**/*.test.ts"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "chatSkills": [
+      {
+        "path": "./skills/playwright-healer"
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "playwright-healer_execute_cli",
+        "displayName": "Execute playwright-cli",
+        "modelDescription": "Run a playwright-cli command (snapshot, screenshot, click, fill, run-code, etc.) against the connected browser. Returns stdout with parsed fields (pageUrl, snapshotFile, screenshotFile, generatedCode).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "The full playwright-cli command to run, e.g. 'snapshot', 'click e3', 'screenshot', 'run-code \"async page => { ... }\"'"
+            }
+          },
+          "required": ["command"]
+        }
+      },
+      {
+        "name": "playwright-healer_resolve_definition",
+        "displayName": "Go to Definition",
+        "modelDescription": "Use LSP go-to-definition to find where a selector or symbol is defined (e.g. in a POM file). Returns the definition file URI, line number, and source code.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "uri": { "type": "string", "description": "File URI (e.g. file:///path/to/test.ts)" },
+            "line": { "type": "number", "description": "Zero-based line number" },
+            "column": { "type": "number", "description": "Zero-based column number" }
+          },
+          "required": ["uri", "line", "column"]
+        }
+      },
+      {
+        "name": "playwright-healer_find_references",
+        "displayName": "Find All References",
+        "modelDescription": "Use LSP find-references to locate every file that uses a given selector or symbol. Returns an array of reference locations with file URI, line, and line text.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "uri": { "type": "string", "description": "File URI" },
+            "line": { "type": "number", "description": "Zero-based line number" },
+            "column": { "type": "number", "description": "Zero-based column number" }
+          },
+          "required": ["uri", "line", "column"]
+        }
+      },
+      {
+        "name": "playwright-healer_get_type_info",
+        "displayName": "Get Type Info",
+        "modelDescription": "Use LSP hover to get type information for a symbol (e.g. Locator, FrameLocator, Page). Helps determine the correct replacement method.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "uri": { "type": "string", "description": "File URI" },
+            "line": { "type": "number", "description": "Zero-based line number" },
+            "column": { "type": "number", "description": "Zero-based column number" }
+          },
+          "required": ["uri", "line", "column"]
+        }
+      },
+      {
+        "name": "playwright-healer_apply_edit",
+        "displayName": "Apply Selector Fix",
+        "modelDescription": "Apply a text replacement across one or more files using workspace.applyEdit. Supports undo. Use this to fix selectors in POM files and test files.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "edits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "uri": { "type": "string", "description": "File URI to edit" },
+                  "line": { "type": "number", "description": "Zero-based line number" },
+                  "oldText": { "type": "string", "description": "Text to find on the line" },
+                  "newText": { "type": "string", "description": "Replacement text" }
+                },
+                "required": ["uri", "line", "oldText", "newText"]
+              },
+              "description": "Array of edits to apply"
+            }
+          },
+          "required": ["edits"]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "playwright-healer.runFile",
+        "title": "Heal Run: Current File",
+        "category": "Playwright Healer"
+      },
+      {
+        "command": "playwright-healer.showScreencast",
+        "title": "Show Screencast",
+        "category": "Playwright Healer"
+      },
+      {
+        "command": "playwright-healer.stop",
+        "title": "Stop Current Run",
+        "category": "Playwright Healer"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.100.0",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
