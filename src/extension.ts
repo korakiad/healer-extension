@@ -109,16 +109,8 @@ function runInvestigation(
   fileUri: vscode.Uri,
   testName?: string,
 ) {
-  // Open headed browser
-  const bin = getLocalCliBin();
-  output.appendLine(`Opening headed browser: ${bin} open --headed`);
-  execFile(bin, ["open", "--headed"], { shell: true }, (err, stdout, stderr) => {
-    if (err) output.appendLine(`Browser open error: ${err.message}`);
-    if (stdout) output.appendLine(stdout);
-    if (stderr) output.appendLine(stderr);
-  });
-
   // Open Copilot Chat with prompt file → auto-selects Playwright Healer agent
+  // Browser opening is handled by the agent (step 2 in agent instructions)
   const file = vscode.workspace.asRelativePath(fileUri);
   const target = testName ? `the test "${testName}" in ${file}` : `all tests in ${file}`;
 
