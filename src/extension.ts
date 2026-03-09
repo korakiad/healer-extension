@@ -114,9 +114,13 @@ function runInvestigation(
   const file = vscode.workspace.asRelativePath(fileUri);
   const target = testName ? `the test "${testName}" in ${file}` : `all tests in ${file}`;
 
-  const prompt = `#prompt:investigate ${target}`;
+  const wsFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!wsFolder) return;
 
-  vscode.commands.executeCommand("workbench.action.chat.open", { query: prompt });
+  const promptUri = vscode.Uri.joinPath(wsFolder.uri, ".github/prompts/investigate.prompt.md");
+  const query = `Follow instructions in [investigate.prompt.md](${promptUri.toString()}). Investigate ${target}.`;
+
+  vscode.commands.executeCommand("workbench.action.chat.open", { query });
 }
 
 export function deactivate() {}
