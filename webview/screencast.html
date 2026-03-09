@@ -1,3 +1,4 @@
+<!-- playwright-healer/webview/screencast.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,8 +24,7 @@
 <body>
   <iframe id="screencast" src="{{SHOW_URL}}"></iframe>
   <div id="toolbar">
-    <button id="btn-run-file" onclick="postMessage('runFile')">Run File</button>
-    <button id="btn-run-suite" onclick="postMessage('runSuite')">Run Suite</button>
+    <button id="btn-run" onclick="postMessage('runFile')">Heal Run</button>
     <button id="btn-stop" class="danger" onclick="postMessage('stop')">Stop</button>
     <span id="status">Ready</span>
   </div>
