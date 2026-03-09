@@ -7,4 +7,7 @@ export default defineConfig({
       vscode: resolve(__dirname, "test/__mocks__/vscode.ts"),
     },
   },
+  test: {
+    exclude: ["node_modules", "dist", "sample-workspace"],
+  },
 });

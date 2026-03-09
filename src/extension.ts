@@ -38,7 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
         // Open screencast
-        const screencast = ScreencastPanel.create(context.extensionUri);
+        const screencast = ScreencastPanel.create();
         await screencast.start();
         screencast.updateStatus(`Running: ${testName ?? uri.fsPath}`);
 
@@ -56,8 +56,11 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("playwright-healer.showScreencast", () => {
-      const screencast = ScreencastPanel.create(context.extensionUri);
+      const screencast = ScreencastPanel.create();
       screencast.start();
+    }),
+    vscode.commands.registerCommand("playwright-healer.openScreencast", () => {
+      vscode.env.openExternal(vscode.Uri.parse("http://localhost:9323"));
     })
   );
 

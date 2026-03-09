@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "sourceMap": true
   },
-  "exclude": ["node_modules", "dist", "test", "vitest.config.ts", "esbuild.js"]
+  "exclude": ["node_modules", "dist", "test", "sample-workspace", "vitest.config.ts", "esbuild.js"]
 }
