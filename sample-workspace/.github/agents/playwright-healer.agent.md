@@ -25,7 +25,7 @@ tools:
     undefined_publisher.playwright-healer/resolveDefinition,
     undefined_publisher.playwright-healer/findReferences,
     undefined_publisher.playwright-healer/typeInfo,
-    undefined_publisher.playwright-healer/askUser,
+    vscode/askQuestions,
     undefined_publisher.playwright-healer/applyEdit,
   ]
 ---
@@ -76,13 +76,13 @@ When `run-code` fails, determine the cause before involving the user:
 | `SyntaxError` / `ReferenceError` | You composed the code wrong | **Self-correct and retry** — do not bother the user |
 | `TimeoutError` on action | Selector doesn't match any element | Check if page is fully loaded first, then triage as element failure |
 | Network / navigation error | Page didn't load | Report as environment/infrastructure issue |
-| `strict mode violation` | Multiple elements matched | Narrow the selector, retry or askUser |
+| `strict mode violation` | Multiple elements matched | Narrow the selector, retry or askQuestions |
 
 **Critical rule:** Agent composition errors (wrong selector from POM resolution, syntax mistakes) are never surfaced to the user. Recognize them from the error type and fix silently.
 
 ## Missing environment variables — STOP before proceeding
 
-After reading the test file (step 1), check for any `process.env.*` references used in the test (e.g. credentials, API keys, URLs). If any are not set in the current environment, do NOT skip them silently or run the test. Instead, use `askUser`:
+After reading the test file (step 1), check for any `process.env.*` references used in the test (e.g. credentials, API keys, URLs). If any are not set in the current environment, do NOT skip them silently or run the test. Instead, use `askQuestions`:
 
 ```json
 {
@@ -101,7 +101,7 @@ Rules:
 - Always set `allowFreeText: true` (default) so user can type a custom value or instruction
 
 Handle the result:
-- **"enter manually"** → open the headed browser, navigate to the login/entry URL from the test, take a snapshot, then tell the user to type their credentials in the browser. Use `askUser` again to confirm when done:
+- **"enter manually"** → open the headed browser, navigate to the login/entry URL from the test, take a snapshot, then tell the user to type their credentials in the browser. Use `askQuestions` again to confirm when done:
   ```json
   {
     "title": "Finished entering credentials?",
@@ -144,7 +144,7 @@ After confirming that the `run-code` failure is a real element issue (correct sy
 
 ### Case A: Semantic alternatives exist
 
-Use `askUser` to present choices:
+Use `askQuestions` to present choices:
 
 ```json
 {
@@ -167,7 +167,7 @@ Rules:
 
 When the broken selector is opaque (e.g. `.xyz123`, `#generated-id-47`) and no element on the page shares a recognizable semantic relationship, do NOT guess a replacement.
 
-Instead, use `askUser` **without suggestions** — explain the situation in plain, non-technical language:
+Instead, use `askQuestions` **without suggestions** — explain the situation in plain, non-technical language:
 
 ```json
 {
@@ -182,18 +182,18 @@ In your chat message, provide semantic reasoning based on what you observed in t
 
 The user has the headed browser open and can visually investigate. Let them decide what the correct element should be.
 
-### Handle the askUser result
+### Handle the askQuestions result
 
 - `{ choiceIndex, label }` → proceed with that candidate selector
 - `{ freeText }` → treat as instruction (custom selector, question, "skip", etc.)
 - `{ cancelled: true }` → stop and wait for user to type in chat
-- If user chose "Take screenshot" → take screenshot, then call `askUser` again with updated choices
+- If user chose "Take screenshot" → take screenshot, then call `askQuestions` again with updated choices
 
 ## After user chooses a fix
 
 1. Use `resolveDefinition` to check if the selector is defined in a Page Object file
 2. Use `findReferences` to find all usages of the old selector
-3. Report locations briefly in chat, then use `askUser` for confirmation:
+3. Report locations briefly in chat, then use `askQuestions` for confirmation:
 
 ```json
 {
@@ -208,7 +208,7 @@ The user has the headed browser open and can visually investigate. Let them deci
 
 4. Handle result:
    - "Apply all" → use `applyEdit` to apply across all files
-   - "Show diff first" → show proposed changes in chat, then call `askUser` again
+   - "Show diff first" → show proposed changes in chat, then call `askQuestions` again
    - "Cancel" → skip, continue investigation
    - `{ freeText }` → treat as instruction (e.g. "only fix the first file", "use a different selector")
 
