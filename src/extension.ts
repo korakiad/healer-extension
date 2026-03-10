@@ -152,12 +152,5 @@ function runInvestigation(
 }
 
 export function deactivate() {
-  // PickerService is a singleton — dispose it to clean up WebSocket + CDP connections
-  try {
-    PickerService.getInstance(
-      vscode.window.createOutputChannel("Playwright Healer")
-    ).dispose();
-  } catch {
-    // ignore if not initialized
-  }
+  PickerService.disposeIfExists();
 }

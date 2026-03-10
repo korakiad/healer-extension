@@ -42,6 +42,10 @@ export class PickerService implements vscode.Disposable {
     return PickerService.instance;
   }
 
+  static disposeIfExists(): void {
+    PickerService.instance?.dispose();
+  }
+
   async ensureInjected(cdpPort: number): Promise<void> {
     if (this.injected && this.page && !this.page.isClosed()) return;
 
@@ -104,7 +108,7 @@ export class PickerService implements vscode.Disposable {
   private async handleMessage(msg: WsMessage): Promise<void> {
     switch (msg.type) {
       case "element-selected": {
-        const elementInfo: ElementInfo = msg.payload;
+        const elementInfo: ElementInfo = msg.payload?.info ?? msg.payload;
         this.lastElementInfo = elementInfo;
         this.wsServer?.send("selector-loading");
 
@@ -120,7 +124,7 @@ export class PickerService implements vscode.Disposable {
 
           const suggestions = await analyzeSelectors(elementInfo, ariaSnapshot);
           this.lastSuggestions = suggestions;
-          this.wsServer?.send("selector-results", suggestions);
+          this.wsServer?.send("selector-results", { selectors: suggestions });
         } catch (err: any) {
           this.wsServer?.send("selector-error", { message: err.message });
         }
