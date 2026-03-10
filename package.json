@@ -141,6 +141,25 @@
           },
           "required": ["edits"]
         }
+      },
+      {
+        "name": "playwright-healer_pick_element",
+        "tags": ["playwright", "element-picker"],
+        "toolReferenceName": "pickElement",
+        "displayName": "Pick Element",
+        "icon": "$(target)",
+        "userDescription": "Open element picker in the browser — click an element to get AI-ranked selector suggestions",
+        "modelDescription": "Activate the element picker overlay in the live browser. The user clicks a target element, AI ranks 2-5 selector suggestions, and the user selects one. Returns the chosen selector, its type (Playwright/CSS), element metadata, and alternative suggestions. Use when you need the user to identify a specific element on the page.",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "hint": {
+              "type": "string",
+              "description": "Context shown to user, e.g. 'Pick the login button' or 'Pick: .old-btn (Submit button)'"
+            }
+          }
+        }
       }
     ],
     "commands": [
@@ -171,6 +190,12 @@
         "command": "playwright-healer.stop",
         "title": "Stop Current Run",
         "icon": "$(debug-stop)",
+        "category": "Playwright Healer"
+      },
+      {
+        "command": "playwright-healer.buildTest",
+        "title": "Build Test from Template",
+        "icon": "$(file-code)",
         "category": "Playwright Healer"
       }
     ]

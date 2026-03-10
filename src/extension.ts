@@ -6,6 +6,8 @@ import { ApplyEditTool } from "./tools/apply-edit.js";
 import { HealCodeLensProvider } from "./ui/codelens.js";
 import { TestExplorerProvider, TestFileItem, TestCaseItem } from "./ui/test-explorer.js";
 import { getLocalCliBin } from "./cli-path.js";
+import { PickElementTool } from "./tools/pick-element.js";
+import { PickerService } from "./element-picker/picker-service.js";
 
 export function activate(context: vscode.ExtensionContext) {
   const output = vscode.window.createOutputChannel("Playwright Healer");
@@ -20,6 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.lm.registerTool("playwright-healer_find_references", new FindReferencesTool()),
     vscode.lm.registerTool("playwright-healer_get_type_info", new GetTypeInfoTool()),
     vscode.lm.registerTool("playwright-healer_apply_edit", new ApplyEditTool()),
+    vscode.lm.registerTool("playwright-healer_pick_element", new PickElementTool(output)),
   );
 
   // ── Test Explorer (Sidebar) ──────────────────────────
@@ -77,6 +80,31 @@ export function activate(context: vscode.ExtensionContext) {
       execFile(bin, ["close"], { shell: true }, () => {});
       vscode.window.showInformationMessage("Browser closed");
     }),
+    vscode.commands.registerCommand(
+      "playwright-healer.buildTest",
+      async (templateUri?: vscode.Uri) => {
+        if (!templateUri) {
+          const files = await vscode.window.showOpenDialog({
+            filters: { "Markdown": ["md"] },
+            canSelectMany: false,
+            title: "Select test template",
+          });
+          if (!files || files.length === 0) return;
+          templateUri = files[0];
+        }
+
+        const wsFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!wsFolder) return;
+
+        const relPath = vscode.workspace.asRelativePath(templateUri);
+        const promptUri = vscode.Uri.joinPath(
+          wsFolder.uri,
+          ".github/prompts/build-test.prompt.md"
+        );
+        const query = `Follow instructions in [build-test.prompt.md](${promptUri.toString()}). Build test from template: [${relPath}](${templateUri.toString()}).`;
+        vscode.commands.executeCommand("workbench.action.chat.open", { query });
+      }
+    ),
   );
 
   // ── Status Bar ─────────────────────────────────────────
@@ -123,4 +151,13 @@ function runInvestigation(
   vscode.commands.executeCommand("workbench.action.chat.open", { query });
 }
 
-export function deactivate() {}
+export function deactivate() {
+  // PickerService is a singleton — dispose it to clean up WebSocket + CDP connections
+  try {
+    PickerService.getInstance(
+      vscode.window.createOutputChannel("Playwright Healer")
+    ).dispose();
+  } catch {
+    // ignore if not initialized
+  }
+}
