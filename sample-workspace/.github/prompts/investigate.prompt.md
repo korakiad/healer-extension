@@ -1,5 +1,5 @@
 ---
-agent: playwright-healer
+agent: Playwright Healer
 ---
 
 Investigate the specified test target using playwright-cli.

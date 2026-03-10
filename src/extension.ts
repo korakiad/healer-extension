@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { execFile } from "child_process";
 import { ResolveDefinitionTool, FindReferencesTool, GetTypeInfoTool } from "./tools/lsp.js";
 import { ApplyEditTool } from "./tools/apply-edit.js";
+import { AskUserTool } from "./tools/ask-user.js";
 import { HealCodeLensProvider } from "./ui/codelens.js";
 import { TestExplorerProvider, TestFileItem, TestCaseItem } from "./ui/test-explorer.js";
 import { getLocalCliBin } from "./cli-path.js";
@@ -19,6 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.lm.registerTool("playwright-healer_resolve_definition", new ResolveDefinitionTool()),
     vscode.lm.registerTool("playwright-healer_find_references", new FindReferencesTool()),
     vscode.lm.registerTool("playwright-healer_get_type_info", new GetTypeInfoTool()),
+    vscode.lm.registerTool("playwright-healer_ask_user", new AskUserTool()),
     vscode.lm.registerTool("playwright-healer_apply_edit", new ApplyEditTool()),
   );
 

@@ -156,7 +156,6 @@ playwright-cli video-stop video.webm
 ```
 
 ## Open parameters
-
 ```bash
 # Use specific browser when creating session
 playwright-cli open --browser=chrome
@@ -165,7 +164,7 @@ playwright-cli open --browser=webkit
 playwright-cli open --browser=msedge
 # Connect to browser via extension
 playwright-cli open --extension
-playwright-cli open --headed
+
 # Use persistent profile (by default profile is in-memory)
 playwright-cli open --persistent
 # Use persistent profile with custom directory
@@ -270,46 +269,10 @@ playwright-cli close
 
 ## Specific tasks
 
-- **Request mocking** [references/request-mocking.md](references/request-mocking.md)
-- **Running Playwright code** [references/running-code.md](references/running-code.md)
-- **Browser session management** [references/session-management.md](references/session-management.md)
-- **Storage state (cookies, localStorage)** [references/storage-state.md](references/storage-state.md)
-- **Test generation** [references/test-generation.md](references/test-generation.md)
-- **Tracing** [references/tracing.md](references/tracing.md)
-- **Video recording** [references/video-recording.md](references/video-recording.md)
-
-## Broken Element Analysis
-
-When a playwright-cli command fails because an element is not found, follow this process.
-
-### Step 1: Gather evidence
-
-- Run `snapshot` to get the current page structure
-- Note the broken selector from the test code
-- Check if the page has fully loaded (look for loading indicators in snapshot)
-
-### Step 2: Find alternatives in the snapshot
-
-Search for elements that share any of these traits with the original selector:
-- **Similar text content** — e.g. original targets "Login", snapshot has "Sign in"
-- **Similar role** — same element type (button, link, input) in same context
-- **Similar position** — same parent container or form
-- **Partial class/ID match** — e.g. `.login-btn` → `.login-button`, `#submit` → `#submit-login`
-
-### Step 3: Verify semantic equivalence
-
-Only suggest alternatives with a recognizable link to the original:
-- ✅ `.login-btn` → `#login-button` (same concept, different attribute)
-- ✅ `.submit` → `button[type="submit"]` (same role, different selector strategy)
-- ✅ `text=Login` → `text=Sign in` (same intent, different label)
-- ❌ `.login-btn` → `.btn-primary` (no semantic link, coincidental match)
-- ❌ `.submit` → `e15` (snapshot ref only, no stable selector)
-
-If no semantically equivalent element exists, report: "This element may have been removed from the application."
-
-### Step 4: Check impact with LSP tools
-
-When a fix is approved:
-- Use `resolveDefinition` to find if the selector lives in a Page Object file
-- Use `findReferences` to find every file using the old selector
-- Report the full impact before applying changes
+* **Request mocking** [references/request-mocking.md](references/request-mocking.md)
+* **Running Playwright code** [references/running-code.md](references/running-code.md)
+* **Browser session management** [references/session-management.md](references/session-management.md)
+* **Storage state (cookies, localStorage)** [references/storage-state.md](references/storage-state.md)
+* **Test generation** [references/test-generation.md](references/test-generation.md)
+* **Tracing** [references/tracing.md](references/tracing.md)
+* **Video recording** [references/video-recording.md](references/video-recording.md)

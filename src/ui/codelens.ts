@@ -30,10 +30,10 @@ export class HealCodeLensProvider implements vscode.CodeLensProvider {
     return blocks.map((block) => {
       const range = new vscode.Range(block.line, 0, block.line, 0);
       return new vscode.CodeLens(range, {
-        title: "$(play) Heal Run",
+        title: "$(play) Investigate",
         command: "playwright-healer.runFile",
         arguments: [document.uri, block.name],
-        tooltip: `Run "${block.name}" with healing enabled`,
+        tooltip: `Investigate "${block.name}" — run, observe, and report errors`,
       });
     });
   }

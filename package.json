@@ -1,7 +1,7 @@
 {
   "name": "playwright-healer",
   "displayName": "Playwright Healer",
-  "description": "Heal failing Playwright tests via Copilot agent mode with live screencast",
+  "description": "Investigate and heal failing Playwright tests via Copilot agent mode with live dashboard",
   "version": "0.0.1",
   "engines": { "vscode": "^1.100.0" },
   "categories": ["Testing"],
@@ -11,31 +11,59 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "chatSkills": [
-      {
-        "path": "./skills/playwright-healer"
-      }
-    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "playwright-healer",
+          "title": "Playwright Healer",
+          "icon": "$(beaker)"
+        }
+      ]
+    },
+    "views": {
+      "playwright-healer": [
+        {
+          "id": "playwright-healer.testExplorer",
+          "name": "Tests"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "playwright-healer.investigate",
+          "when": "view == playwright-healer.testExplorer && viewItem == testCase",
+          "group": "inline"
+        },
+        {
+          "command": "playwright-healer.investigateFile",
+          "when": "view == playwright-healer.testExplorer && viewItem == testFile",
+          "group": "inline"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "playwright-healer.refreshTests",
+          "when": "view == playwright-healer.testExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "playwright-healer.stop",
+          "when": "view == playwright-healer.testExplorer",
+          "group": "navigation"
+        }
+      ]
+    },
     "languageModelTools": [
       {
-        "name": "playwright-healer_execute_cli",
-        "displayName": "Execute playwright-cli",
-        "modelDescription": "Run a playwright-cli command (snapshot, screenshot, click, fill, run-code, etc.) against the connected browser. Returns stdout with parsed fields (pageUrl, snapshotFile, screenshotFile, generatedCode).",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "command": {
-              "type": "string",
-              "description": "The full playwright-cli command to run, e.g. 'snapshot', 'click e3', 'screenshot', 'run-code \"async page => { ... }\"'"
-            }
-          },
-          "required": ["command"]
-        }
-      },
-      {
         "name": "playwright-healer_resolve_definition",
+        "tags": ["playwright", "code-navigation"],
+        "toolReferenceName": "resolveDefinition",
         "displayName": "Go to Definition",
-        "modelDescription": "Use LSP go-to-definition to find where a selector or symbol is defined (e.g. in a POM file). Returns the definition file URI, line number, and source code.",
+        "icon": "$(symbol-function)",
+        "userDescription": "Find where a selector or symbol is defined using LSP",
+        "modelDescription": "Use LSP go-to-definition to find where a selector or symbol is defined (e.g. in a Page Object Model file). Returns the definition file URI, line number, and surrounding source code.",
+        "canBeReferencedInPrompt": true,
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -48,8 +76,13 @@
       },
       {
         "name": "playwright-healer_find_references",
+        "tags": ["playwright", "code-navigation"],
+        "toolReferenceName": "findReferences",
         "displayName": "Find All References",
+        "icon": "$(references)",
+        "userDescription": "Find all files that use a given selector or symbol",
         "modelDescription": "Use LSP find-references to locate every file that uses a given selector or symbol. Returns an array of reference locations with file URI, line, and line text.",
+        "canBeReferencedInPrompt": true,
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -62,8 +95,13 @@
       },
       {
         "name": "playwright-healer_get_type_info",
+        "tags": ["playwright", "code-navigation"],
+        "toolReferenceName": "typeInfo",
         "displayName": "Get Type Info",
-        "modelDescription": "Use LSP hover to get type information for a symbol (e.g. Locator, FrameLocator, Page). Helps determine the correct replacement method.",
+        "icon": "$(symbol-type-parameter)",
+        "userDescription": "Get type information for a symbol using LSP hover",
+        "modelDescription": "Use LSP hover to get type information for a symbol (e.g. Locator, FrameLocator, Page). Helps determine the correct Playwright API method to use.",
+        "canBeReferencedInPrompt": true,
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -75,9 +113,45 @@
         }
       },
       {
+        "name": "playwright-healer_ask_user",
+        "tags": ["playwright", "user-interaction"],
+        "toolReferenceName": "askUser",
+        "displayName": "Ask User to Choose",
+        "icon": "$(list-selection)",
+        "userDescription": "Show a Quick Pick menu for the user to choose from options",
+        "modelDescription": "Present choices to the user via a native VS Code Quick Pick dropdown. Use this instead of writing numbered choices in chat text. The user can pick a choice or type a custom response. Returns { choiceIndex, label } for a pick, { freeText } for custom input, or { cancelled: true } if dismissed.",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string", "description": "Title shown at the top of the picker" },
+            "choices": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": { "type": "string", "description": "Choice label" },
+                  "description": { "type": "string", "description": "Short description shown beside the label" }
+                },
+                "required": ["label"]
+              },
+              "description": "Array of choices to show"
+            },
+            "allowFreeText": { "type": "boolean", "description": "Whether to include a 'Type your own' option (default: true)" },
+            "freeTextPlaceholder": { "type": "string", "description": "Placeholder for the free text input box" }
+          },
+          "required": ["title", "choices"]
+        }
+      },
+      {
         "name": "playwright-healer_apply_edit",
-        "displayName": "Apply Selector Fix",
-        "modelDescription": "Apply a text replacement across one or more files using workspace.applyEdit. Supports undo. Use this to fix selectors in POM files and test files.",
+        "tags": ["playwright", "code-edit"],
+        "toolReferenceName": "applyEdit",
+        "displayName": "Apply Code Edit",
+        "icon": "$(edit)",
+        "userDescription": "Apply text replacements to fix selectors or code in test files",
+        "modelDescription": "Apply a text replacement across one or more files using workspace.applyEdit. Supports undo. Use this to fix broken selectors, update Page Object Model files, or patch test code.",
+        "canBeReferencedInPrompt": true,
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -102,18 +176,32 @@
     ],
     "commands": [
       {
-        "command": "playwright-healer.runFile",
-        "title": "Heal Run: Current File",
+        "command": "playwright-healer.investigate",
+        "title": "Investigate Test",
+        "icon": "$(play)",
         "category": "Playwright Healer"
       },
       {
-        "command": "playwright-healer.showScreencast",
-        "title": "Show Screencast",
+        "command": "playwright-healer.investigateFile",
+        "title": "Investigate All Tests in File",
+        "icon": "$(run-all)",
+        "category": "Playwright Healer"
+      },
+      {
+        "command": "playwright-healer.runFile",
+        "title": "Investigate: Current File",
+        "category": "Playwright Healer"
+      },
+      {
+        "command": "playwright-healer.refreshTests",
+        "title": "Refresh Tests",
+        "icon": "$(refresh)",
         "category": "Playwright Healer"
       },
       {
         "command": "playwright-healer.stop",
         "title": "Stop Current Run",
+        "icon": "$(debug-stop)",
         "category": "Playwright Healer"
       }
     ]
