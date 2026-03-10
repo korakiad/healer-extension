@@ -27,6 +27,7 @@ tools:
     undefined_publisher.playwright-healer/typeInfo,
     vscode/askQuestions,
     undefined_publisher.playwright-healer/applyEdit,
+    undefined_publisher.playwright-healer/pickElement,
   ]
 ---
 
@@ -140,9 +141,37 @@ After confirming that the `run-code` failure is a real element issue (correct sy
 
 1. Report what you found briefly in chat (1-2 lines: which step failed, the broken selector, the actual error from `run-code`)
 2. Take a `snapshot` and `screenshot` to observe the current page state
-3. Look for alternative elements that could semantically match
+3. Use `askQuestions` to let the user decide:
 
-### Case A: Semantic alternatives exist
+```json
+{
+  "title": "Broken: <selector> — how to find replacement?",
+  "choices": [
+    { "label": "Pick element in browser", "description": "I'll click the correct element in the browser" },
+    { "label": "Let agent suggest", "description": "Search the page for semantic alternatives" }
+  ]
+}
+```
+
+### If user chose "Pick element in browser"
+
+Call `pickElement` with context about what you're looking for:
+
+```
+pickElement({ hint: "Pick: <broken-selector> (<what the test expects, e.g. Submit button>)" })
+```
+
+The tool activates the element picker overlay in the browser. The user clicks the target element, AI ranks selector suggestions, and the user selects one. The tool returns:
+- `selector` — the chosen selector
+- `type` — "Playwright" or "CSS"
+- `elementInfo` — tag, id, role, ariaLabel, frameChain
+- `alternatives` — other ranked suggestions
+
+Proceed to "After user chooses a fix" with the returned selector.
+
+### If user chose "Let agent suggest"
+
+#### Case A: Semantic alternatives exist
 
 Use `askQuestions` to present choices:
 
@@ -163,7 +192,7 @@ Rules:
 - Always include "Take screenshot" as the last choice
 - Always set `allowFreeText: true` (default) so user can type a custom selector or instruction
 
-### Case B: No semantic match (opaque/fragile selector)
+#### Case B: No semantic match (opaque/fragile selector)
 
 When the broken selector is opaque (e.g. `.xyz123`, `#generated-id-47`) and no element on the page shares a recognizable semantic relationship, do NOT guess a replacement.
 
@@ -173,14 +202,15 @@ Instead, use `askQuestions` **without suggestions** — explain the situation in
 {
   "title": "Element not found on this page",
   "choices": [
+    { "label": "Pick element in browser", "description": "I'll click the correct element" },
     { "label": "Take screenshot", "description": "Get visual context of the current page" }
   ]
 }
 ```
 
-In your chat message, provide semantic reasoning based on what you observed in the screenshot and accessibility tree. For example: "The code is looking for a button with selector `.xyz123`, but I don't see any button on this page that matches. The page shows a login form with a username field and a submit button."
+Note: For Case B (no semantic match), always include "Pick element in browser" as first choice since it's the most useful option when agent can't suggest alternatives.
 
-The user has the headed browser open and can visually investigate. Let them decide what the correct element should be.
+In your chat message, provide semantic reasoning based on what you observed in the screenshot and accessibility tree.
 
 ### Handle the askQuestions result
 
