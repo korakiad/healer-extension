@@ -181,9 +181,14 @@
     "lint": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "playwright-core": "^1.50.0",
+    "ws": "^8.17.0"
+  },
   "devDependencies": {
     "@types/vscode": "^1.100.0",
     "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
