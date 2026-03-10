@@ -27,7 +27,7 @@ export class PickElementTool implements vscode.LanguageModelTool<PickElementInpu
     const { hint } = options.input;
 
     try {
-      const cdpPort = Number(process.env.CDP_PORT ?? 9222);
+      const cdpPort = Number(process.env.CDP_PORT ?? 20565);
       const picker = PickerService.getInstance(this.output);
 
       await picker.ensureInjected(cdpPort);

@@ -1,16 +1,9 @@
 import * as vscode from "vscode";
 import { chromium, Browser, Page } from "playwright-core";
-import { execFile } from "child_process";
-import { promisify } from "util";
-import { readFileSync, writeFileSync, unlinkSync } from "fs";
+import { readFileSync } from "fs";
 import { join } from "path";
-import { mkdirSync } from "fs";
-import { tmpdir } from "os";
 import { PickerWsServer, WsMessage } from "./ws-server.js";
 import { analyzeSelectors, ElementInfo, SelectorSuggestion } from "./lm-agent.js";
-import { getLocalCliBin } from "../cli-path.js";
-
-const execFileAsync = promisify(execFile);
 
 export interface PickElementResult {
   selector: string;
@@ -23,23 +16,21 @@ type SelectionResolver = (result: PickElementResult) => void;
 type SelectionRejecter = (error: Error) => void;
 
 /**
- * Manages float ball injection and element picking.
+ * Manages browser launch, float ball injection, and element picking.
  *
- * Browser lifecycle (mirrors cdp-bridge.ts pattern from root project):
- * 1. Launch Chrome with --remote-debugging-port=PORT
- * 2. Write CDP config → playwright-cli open --config=<path> to connect daemon
- * 3. connectOverCDP for float ball injection
- *
- * Extension + daemon share the same browser instance.
+ * Responsibilities split between extension and agent:
+ * - Extension: launches Chrome with --remote-debugging-port (launchBrowser)
+ * - Agent: connects daemon via playwright-cli open --config with cdpEndpoint
+ * - This service: connectOverCDP for float ball injection (ensureInjected)
  */
 export class PickerService implements vscode.Disposable {
   private static instance: PickerService | null = null;
 
+  private launchedBrowser: Browser | null = null;
   private wsServer: PickerWsServer | null = null;
   private browser: Browser | null = null;
   private page: Page | null = null;
   private injected = false;
-  private cdpConfigPath: string | null = null;
 
   private pendingResolve: SelectionResolver | null = null;
   private pendingReject: SelectionRejecter | null = null;
@@ -65,8 +56,24 @@ export class PickerService implements vscode.Disposable {
   }
 
   /**
-   * Ensure browser is running with CDP, daemon connected, and float ball injected.
-   * Reuses cdp-bridge.ts pattern: config file → playwright-cli open --config.
+   * Launch Chrome headed with --remote-debugging-port.
+   * Called by extension before opening Copilot Chat.
+   * Agent then connects daemon via: playwright-cli open --config (with cdpEndpoint pointing here).
+   */
+  async launchBrowser(cdpPort: number): Promise<void> {
+    if (this.launchedBrowser) return;
+
+    this.launchedBrowser = await chromium.launch({
+      headless: false,
+      args: [`--remote-debugging-port=${cdpPort}`],
+    });
+    this.output.appendLine(`[picker] Chrome launched with CDP on port ${cdpPort}`);
+  }
+
+  /**
+   * Connect to browser via CDP and inject float ball.
+   * Browser must already be running (launched by launchBrowser).
+   * Daemon must already be connected (by agent via playwright-cli open --config).
    */
   async ensureInjected(cdpPort: number): Promise<void> {
     if (this.injected && this.page && !this.page.isClosed()) return;
@@ -81,12 +88,7 @@ export class PickerService implements vscode.Disposable {
       this.output.appendLine(`[picker] WebSocket server on port ${this.wsServer.port}`);
     }
 
-    // Connect daemon if not already connected (cdp-bridge pattern)
-    if (!this.cdpConfigPath) {
-      await this.connectDaemon(cdpPort);
-    }
-
-    // Connect via CDP for float ball injection
+    // Connect via CDP — browser already running at this port
     this.browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
     const contexts = this.browser.contexts();
     if (contexts.length === 0) throw new Error("No browser contexts found via CDP");
@@ -120,39 +122,6 @@ export class PickerService implements vscode.Disposable {
         this.output.appendLine(`[picker] Re-injection failed: ${err}`);
       }
     });
-  }
-
-  /**
-   * Write CDP config and connect daemon (same pattern as cdp-bridge.ts).
-   * Config: { browser: { cdpEndpoint, isolated: false } }
-   * Then: playwright-cli open --config=<path>
-   */
-  private async connectDaemon(cdpPort: number): Promise<void> {
-    const configDir = join(tmpdir(), "playwright-healer");
-    mkdirSync(configDir, { recursive: true });
-    const configPath = join(configDir, "playwright-cli.json");
-
-    const cdpConfig = {
-      browser: {
-        cdpEndpoint: `http://localhost:${cdpPort}`,
-        isolated: false,
-      },
-    };
-    writeFileSync(configPath, JSON.stringify(cdpConfig, null, 2));
-    this.cdpConfigPath = configPath;
-
-    const cliBin = getLocalCliBin();
-    try {
-      await execFileAsync(
-        cliBin,
-        ["open", `--config=${configPath}`],
-        { shell: true, timeout: 15_000 },
-      );
-      this.output.appendLine(`[picker] Daemon connected via CDP config (port ${cdpPort})`);
-    } catch (err) {
-      this.output.appendLine(`[picker] Daemon connection failed: ${err}`);
-      // Non-fatal — daemon may already be connected
-    }
   }
 
   pickElement(hint?: string): Promise<PickElementResult> {
@@ -224,15 +193,14 @@ export class PickerService implements vscode.Disposable {
     this.cancelPick();
     this.wsServer?.stop();
     this.wsServer = null;
+    // Disconnect CDP injection handle
     this.browser?.close().catch(() => {});
     this.browser = null;
     this.page = null;
+    // Close launched browser
+    this.launchedBrowser?.close().catch(() => {});
+    this.launchedBrowser = null;
     this.injected = false;
-    // Clean up CDP config
-    if (this.cdpConfigPath) {
-      try { unlinkSync(this.cdpConfigPath); } catch { /* ignore */ }
-      this.cdpConfigPath = null;
-    }
     PickerService.instance = null;
   }
 }

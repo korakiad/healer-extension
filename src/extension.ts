@@ -78,6 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("playwright-healer.stop", () => {
       const bin = getLocalCliBin();
       execFile(bin, ["close"], { shell: true }, () => {});
+      PickerService.disposeIfExists();
       vscode.window.showInformationMessage("Browser closed");
     }),
     vscode.commands.registerCommand(
@@ -95,6 +96,9 @@ export function activate(context: vscode.ExtensionContext) {
 
         const wsFolder = vscode.workspace.workspaceFolders?.[0];
         if (!wsFolder) return;
+
+        // Launch Chrome with --remote-debugging-port for builder mode
+        await launchBrowserIfNeeded(output);
 
         const relPath = vscode.workspace.asRelativePath(templateUri);
         const promptUri = vscode.Uri.joinPath(
@@ -132,18 +136,32 @@ function installSkill(output: vscode.OutputChannel) {
   });
 }
 
-function runInvestigation(
+const DEFAULT_CDP_PORT = 20565;
+
+async function launchBrowserIfNeeded(output: vscode.OutputChannel): Promise<void> {
+  try {
+    const cdpPort = Number(process.env.CDP_PORT ?? DEFAULT_CDP_PORT);
+    const picker = PickerService.getInstance(output);
+    await picker.launchBrowser(cdpPort);
+  } catch (err) {
+    output.appendLine(`[picker] Browser launch failed: ${err}`);
+    // Continue anyway — agent can still work without pick_element
+  }
+}
+
+async function runInvestigation(
   output: vscode.OutputChannel,
   fileUri: vscode.Uri,
   testName?: string,
 ) {
-  // Open Copilot Chat with prompt file → auto-selects Playwright Healer agent
-  // Browser opening is handled by the agent (step 2 in agent instructions)
   const file = vscode.workspace.asRelativePath(fileUri);
   const target = testName ? `the test "${testName}" in ${file}` : `all tests in ${file}`;
 
   const wsFolder = vscode.workspace.workspaceFolders?.[0];
   if (!wsFolder) return;
+
+  // Launch Chrome with --remote-debugging-port; agent connects daemon via playwright-cli open --config
+  await launchBrowserIfNeeded(output);
 
   const promptUri = vscode.Uri.joinPath(wsFolder.uri, ".github/prompts/investigate.prompt.md");
   const query = `Follow instructions in [investigate.prompt.md](${promptUri.toString()}). Investigate ${target}.`;
