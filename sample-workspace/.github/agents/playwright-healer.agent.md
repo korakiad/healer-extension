@@ -242,6 +242,82 @@ In your chat message, provide semantic reasoning based on what you observed in t
    - "Cancel" → skip, continue investigation
    - `{ freeText }` → treat as instruction (e.g. "only fix the first file", "use a different selector")
 
+## Builder Mode — Generate Tests from Templates
+
+When triggered via `build-test.prompt.md`, follow this workflow to generate a complete Playwright test from a markdown template (e.g. exported from TestRail).
+
+### Phase 1: Read Template
+
+Read the template file. Extract:
+- Test title / description
+- Test steps (numbered or bulleted)
+- Any URLs, credentials, or preconditions mentioned
+
+### Phase 2: Project Discovery
+
+Before writing ANY code, explore the project to understand existing patterns:
+
+1. **Scan project structure** — list directories for `pages/`, `helpers/`, `fixtures/`, `utils/`, `tests/`
+2. **Read existing test files** — understand import patterns, naming conventions, test structure
+3. **Catalog existing Page Objects** — for each POM class, note:
+   - Class name and file path
+   - Available methods and their selectors (use `resolveDefinition` to trace)
+   - Which pages/URLs they cover
+4. **Catalog shared helpers** — login utilities, data setup, common assertions
+5. **Note conventions** — file naming (kebab-case? camelCase?), test grouping (`describe` blocks?), assertion style
+
+Report your findings briefly: "Found LoginPage (pages/login.page.ts) with login(), DashboardPage not found. Tests use describe blocks, POM pattern."
+
+### Phase 3: Build Step by Step
+
+For each step in the template:
+
+1. **Check if existing code covers this step:**
+   - If a POM method exists for this action → plan to reuse it
+   - If a helper exists (e.g. `login()`) → plan to reuse it
+   - Report: "Step 3 'fill username' → reuse LoginPage.fillUsername()"
+
+2. **If no existing code covers this step:**
+   a. Ask for the URL if not known yet:
+      ```json
+      { "title": "URL for step: '<step description>'?", "choices": [
+        { "label": "Same page", "description": "Continue on current page" },
+        { "label": "Navigate to new URL", "description": "I'll provide the URL" }
+      ]}
+      ```
+   b. Navigate if needed: `playwright-cli goto <url>`
+   c. Use `pickElement` to let user identify the target element:
+      ```
+      pickElement({ hint: "Step N: <step description>" })
+      ```
+   d. After getting the selector, validate it works:
+      ```bash
+      playwright-cli run-code "async (page) => { await page.locator('<selector>').click(); }"
+      ```
+
+3. **Decide where the selector belongs:**
+   - If a POM already exists for this page → add a new method to it
+   - If no POM exists but 2+ selectors target the same page → create a new POM following project patterns
+   - If it's a one-off action → inline in the test
+
+4. Use `askQuestions` to confirm your decision:
+   ```json
+   { "title": "Selector '<selector>' — where to put it?", "choices": [
+     { "label": "Add to existing POM", "description": "New method in the matching Page Object" },
+     { "label": "Create new POM", "description": "New Page Object file following existing pattern" },
+     { "label": "Inline in test", "description": "Use directly in the test file" }
+   ]}
+   ```
+
+### Phase 4: Generate Code
+
+After all steps are resolved:
+
+1. **Write/update POM files first** — use `applyEdit` for each new method or file
+2. **Write the test file** — with proper imports, using POMs and helpers
+3. **Validate the complete test** — run key actions via `run-code` to verify selectors work
+4. Show final summary: which files were created/modified, which POMs were reused vs created
+
 ## Rules
 
 - **Never guess from static analysis** — do NOT infer what the page looks like by reading the test code, URLs, or external knowledge. You MUST open the browser with `playwright-cli open --headed` and observe the actual page via `snapshot` before making any assessment or suggestion
