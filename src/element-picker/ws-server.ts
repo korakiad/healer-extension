@@ -59,6 +59,10 @@ export class PickerWsServer {
     }
   }
 
+  hasClient(): boolean {
+    return this.client?.readyState === WebSocket.OPEN;
+  }
+
   stop(): void {
     this.client?.close();
     this.client = null;
