@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { chromium, Browser, Page } from "playwright-core";
+import { chromium, Browser, Page, Frame } from "playwright-core";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { PickerWsServer, WsMessage } from "./ws-server.js";
@@ -96,30 +96,38 @@ export class PickerService implements vscode.Disposable {
     if (pages.length === 0) throw new Error("No pages found via CDP");
     this.page = pages[0];
 
-    // Inject float-ball.js
+    // Inject float-ball.js into ALL frames (main + nested iframes)
     const scriptPath = join(__dirname, "injected", "float-ball.js");
-    let script = readFileSync(scriptPath, "utf-8");
-    script = script
+    const baseScript = readFileSync(scriptPath, "utf-8")
       .replace(/__WS_PORT__/g, String(this.wsServer.port))
       .replace(/__WS_TOKEN__/g, this.wsServer.token)
       .replace(/__MODE__/g, "agent");
 
-    await this.page.evaluate(script);
-    this.injected = true;
-    this.output.appendLine("[picker] Float ball injected via CDP");
+    const prepareForFrame = (frame: Frame) => {
+      const chain = buildFrameChain(frame);
+      return baseScript.replace(/__FRAME_CHAIN__/g, JSON.stringify(chain));
+    };
 
-    // Re-inject on navigation
-    this.page.on("load", async () => {
+    // Inject into all existing frames
+    for (const frame of this.page.frames()) {
       try {
-        let s = readFileSync(scriptPath, "utf-8");
-        s = s
-          .replace(/__WS_PORT__/g, String(this.wsServer!.port))
-          .replace(/__WS_TOKEN__/g, this.wsServer!.token)
-          .replace(/__MODE__/g, "agent");
-        await this.page!.evaluate(s);
-        this.output.appendLine("[picker] Float ball re-injected after navigation");
+        await frame.evaluate(prepareForFrame(frame));
       } catch (err) {
-        this.output.appendLine(`[picker] Re-injection failed: ${err}`);
+        this.output.appendLine(`[picker] Inject skipped for ${frame.url()}: ${err}`);
+      }
+    }
+    this.injected = true;
+    this.output.appendLine(
+      `[picker] Float ball injected into ${this.page.frames().length} frame(s)`
+    );
+
+    // Re-inject when any frame navigates (handles new iframes + SPA navigations)
+    this.page.on("framenavigated", async (frame) => {
+      try {
+        await frame.waitForLoadState("domcontentloaded");
+        await frame.evaluate(prepareForFrame(frame));
+      } catch {
+        // Frame may have detached or be inaccessible — ignore
       }
     });
   }
@@ -203,4 +211,24 @@ export class PickerService implements vscode.Disposable {
     this.injected = false;
     PickerService.instance = null;
   }
+}
+
+/**
+ * Build frame chain from Playwright's frame tree.
+ * Uses the Frame API which has full access regardless of cross-origin restrictions.
+ */
+function buildFrameChain(
+  frame: Frame
+): Array<{ tagName: string; name: string | null; src: string | null }> {
+  const chain: Array<{ tagName: string; name: string | null; src: string | null }> = [];
+  let current: Frame | null = frame;
+  while (current?.parentFrame()) {
+    chain.unshift({
+      tagName: "iframe",
+      name: current.name() || null,
+      src: current.url() || null,
+    });
+    current = current.parentFrame();
+  }
+  return chain;
 }

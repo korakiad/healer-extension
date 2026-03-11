@@ -5,6 +5,7 @@
     wsPort: "__WS_PORT__",
     wsToken: "__WS_TOKEN__",
     mode: "__MODE__",  // "agent" | "standalone"
+    frameChain: __FRAME_CHAIN__,  // Pre-computed by Playwright (works cross-origin)
   };
 
   if (window.__selectorFinderActive) return;
@@ -23,15 +24,8 @@
       path.unshift(tag + id + cls);
       cur = cur.parentElement;
     }
-    const frameChain = [];
-    let win = window;
-    while (win !== win.top) {
-      try {
-        const f = win.frameElement;
-        if (f) frameChain.unshift({ tagName: f.tagName.toLowerCase(), name: f.name || null, id: f.id || null, src: f.src || null });
-      } catch { break; }
-      win = win.parent;
-    }
+    // Use pre-computed frame chain from Playwright (works across cross-origin boundaries)
+    const frameChain = CONFIG.frameChain || [];
     return {
       tagName: el.tagName.toLowerCase(),
       id: el.id || null,
@@ -47,7 +41,12 @@
   }
 
   // --- Iframe relay: if running in an iframe, highlight + relay clicks to top frame ---
-  const isTopFrame = window === window.top;
+  let isTopFrame;
+  try {
+    isTopFrame = window === window.top;
+  } catch {
+    isTopFrame = false;  // Cross-origin: cannot compare, treat as iframe
+  }
   if (!isTopFrame) {
     const iframeOverlay = document.createElement('div');
     iframeOverlay.style.cssText = 'position:fixed;pointer-events:none;border:2px solid #0969da;border-radius:3px;background:rgba(9,105,218,0.1);z-index:2147483647;transition:all 0.05s ease;display:none;';
